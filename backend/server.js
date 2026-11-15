@@ -3,6 +3,8 @@ const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 
+const roomsRouter = require("./routes/rooms");
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -17,8 +19,18 @@ app.get("/", (req, res) => {
 });
 
 app.get("/health", (req, res) => {
-    res.json({
-        status: "ok"
+    res.json({ status: "ok" });
+});
+
+// 방 관리 API 연결
+app.use("/rooms", roomsRouter);
+
+// 서버 오류 처리
+app.use((error, req, res, next) => {
+    console.error(error);
+
+    res.status(500).json({
+        error: "서버 내부 오류가 발생했습니다."
     });
 });
 
