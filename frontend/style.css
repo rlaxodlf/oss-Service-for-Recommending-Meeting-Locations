@@ -1,4 +1,4 @@
-/* 공통 스타일: 모든 화면에서 사용 */
+/* 모든 화면이 공유하는 공통 스타일 */
 :root {
   --primary: #3b82f6;
   --primary-dark: #2563eb;
@@ -14,7 +14,7 @@
   box-sizing: border-box;
 }
 
-/* hidden 속성이 다른 display 설정에 지지 않게 해요 */
+/* hidden 속성이 다른 display 규칙보다 항상 우선하도록 강제한다 */
 [hidden] {
   display: none !important;
 }
@@ -143,7 +143,7 @@ button.secondary {
   padding: 16px 0;
 }
 
-/* 작은 화면(휴대폰)에서 여백 줄이기 */
+/* 휴대폰 등 작은 화면에서 여백을 줄이는 반응형 규칙 */
 @media (max-width: 480px) {
   main {
     margin: 16px auto;

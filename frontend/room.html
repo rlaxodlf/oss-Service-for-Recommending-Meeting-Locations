@@ -12,7 +12,7 @@
   <main>
     <p id="error" class="error"></p>
 
-    <!-- 1단계: 방을 만들면 가장 먼저 팀원을 초대해요 -->
+    <!-- 초대 카드: 방 생성 직후 가장 먼저 보여 주며, 초대 링크 표시와 복사 버튼을 제공한다 -->
     <section class="card" id="invite-card" hidden>
       <h2>👋 팀원을 초대해요</h2>
       <p class="hint">이 링크를 카카오톡 단체방에 보내면, 팀원이 각자 시간표를 등록할 수 있어요.</p>
@@ -47,7 +47,7 @@
   <script>
     const API = "http://localhost:3000";
 
-    // 주소창의 ?id=xxxx 에서 방 번호 꺼내기
+    // 주소의 쿼리스트링(?id=...)에서 방 번호를 읽는다
     const roomId = new URLSearchParams(location.search).get("id");
     const errorBox = document.getElementById("error");
 
@@ -78,7 +78,7 @@
       const list = document.getElementById("member-list");
       room.members.forEach((m) => {
         const li = document.createElement("li");
-        li.textContent = m.name || m; // 멤버 데이터 형태가 정해지면 수정
+        li.textContent = m.name || m; // 멤버 데이터 형식이 확정되지 않아 문자열과 객체를 모두 처리한다 (확정 후 수정 필요)
         list.appendChild(li);
       });
       document.getElementById("member-empty").hidden = room.members.length > 0;
@@ -92,7 +92,7 @@
       document.getElementById("result-card").hidden = false;
     }
 
-    // 초대 링크 복사
+    // 현재 주소를 클립보드에 복사하고 버튼 문구를 바꾼다
     document.getElementById("copy-btn").addEventListener("click", async () => {
       await navigator.clipboard.writeText(location.href);
       document.getElementById("copy-btn").textContent = "복사됨! ✔";
