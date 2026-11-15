@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>시간표 등록</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .checks label { display: inline-flex; align-items: center; gap: 4px; margin: 0 12px 0 0; font-weight: normal; }
+    .checks input { width: auto; }
+
+    /* ===== 시간표 격자 ===== */
+    .tt { --hour: 48px; display: grid; grid-template-columns: 38px repeat(6, 1fr); font-size: 12px; user-select: none; }
+    .tt-head { text-align: center; font-weight: bold; padding: 6px 0; border-bottom: 1px solid var(--border); }
+    .tt-times { position: relative; }
+    .tt-times span { position: absolute; right: 4px; transform: translateY(-50%); color: var(--muted); }
+
+    /* 요일 한 칸(세로 줄). 가로선은 배경으로 그려요: 1시간마다 진하게, 30분마다 연하게 */
+    .tt-col {
+      position: relative;
+      border-left: 1px solid var(--border);
+      cursor: crosshair;
+      touch-action: pan-y;
+      background-image:
+        linear-gradient(to bottom, var(--border) 1px, transparent 1px),
+        linear-gradient(to bottom, #eef2f7 1px, transparent 1px);
+      background-size: 100% var(--hour), 100% calc(var(--hour) / 2);
+    }
+
+    /* 수업 사각형 */
+    .block {
+      position: absolute;
+      left: 2px; right: 2px;
+      border-radius: 6px;
+      padding: 3px 4px;
+      overflow: hidden;
+      font-size: 11px;
+      line-height: 1.25;
+      color: #1f2937;
+      cursor: pointer;
+      border: 2px solid transparent;
+    }
+    .block.selected { border-color: var(--primary-dark); }
+    .block small { display: block; opacity: 0.75; }
+    .ghost { position: absolute; left: 2px; right: 2px; background: rgba(59,130,246,0.25); border: 2px dashed var(--primary); border-radius: 6px; pointer-events: none; }
+
+    /* 선택한 수업을 고치는 칸 */
+    .editor { display: grid; grid-template-columns: 70px 1fr 1fr 1.4fr; gap: 6px; margin-top: 12px; padding: 12px; background: var(--bg); border-radius: 8px; }
+    .editor select, .editor input { padding: 8px; font-size: 14px; }
+    .editor select { border: 1px solid var(--border); border-radius: 8px; background: white; }
+    .editor button { grid-column: 1 / -1; margin-top: 0; background: #fee2e2; color: var(--error); }
+    @media (max-width: 480px) {
+      .editor { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header><a href="index.html">📍 모임 장소 추천</a></header>
+
+  <main>
+    <p><a id="back-link" href="#">← 방으로 돌아가기</a></p>
+
+    <form class="card" id="schedule-form">
+      <h2>내 시간표 등록</h2>
+
+      <label for="nickname">닉네임</label>
+      <input id="nickname" type="text" placeholder="예) 민영" required />
+
+      <label for="image">시간표 캡처 올리기</label>
+      <input id="image" type="file" accept="image/png,image/jpeg" />
+      <p class="hint">파일을 고르거나, 캡처한 뒤 이 화면에서 <b>Ctrl+V</b>로 붙여넣어요. (png/jpg, 5MB 이하)</p>
+      <img id="preview" alt="시간표 미리보기" hidden style="max-width:100%; border:1px solid var(--border); border-radius:8px; margin-bottom:8px;" />
+      <button id="parse-btn" class="secondary" type="button">캡처 분석하기</button>
+      <p id="parse-status" class="hint"></p>
+
+      <label>내 시간표</label>
+      <p class="hint">
+        수업이 있는 시간을 <b>클릭하거나 드래그</b>해서 칠해요. 칠하지 않은 칸은 공강이에요.
+        사각형을 누르면 아래에서 요일·시간·강의실을 고치거나 지울 수 있어요.
+        자동으로 읽은 결과는 틀릴 수 있으니 꼭 확인해 주세요.
+      </p>
+      <div class="tt" id="tt"></div>
+      <div class="editor" id="editor" hidden>
+        <select id="ed-day"></select>
+        <input id="ed-start" type="time" />
+        <input id="ed-end" type="time" />
+        <input id="ed-room" type="text" placeholder="강의실 예) 새빛104" />
+        <button id="ed-delete" type="button">이 수업 지우기</button>
+      </div>
+
+      <label id="confirm-box" class="checks" hidden>
+        <input id="confirmed" type="checkbox" /> 분석 결과를 확인하고 수정했어요
+      </label>
+
+      <label>선호하는 시간대 (선택)</label>
+      <div class="checks" id="preferred"></div>
+
+      <button type="submit">시간표 저장</button>
+      <p id="error" class="error"></p>
+      <p id="done" class="hint"></p>
+    </form>
+  </main>
+
+  <script src="api.js"></script>
+  <script>
+    const roomId = new URLSearchParams(location.search).get("id");
+    document.getElementById("back-link").href = "room.html?id=" + roomId;
+    const errorBox = document.getElementById("error");
+
+    // 선호 시간대 체크박스 만들기
+    document.getElementById("preferred").innerHTML = PREFERRED_TIMES
+      .map((t) => `<label><input type="checkbox" value="${t}" /> ${t}</label>`)
+      .join("");
+
+    // ===== 시간표 격자 =====
+    // 수업 목록(classes)이 진짜 데이터이고, 격자는 그것을 그려 보여주는 화면이에요.
+    const START_H = 8;   // 격자 시작 시각
+    const END_H = 21;    // 격자 끝 시각
+    const HOUR_PX = 48;  // 1시간의 높이(px). CSS의 --hour와 같아야 해요.
+    const STEP = 30;     // 칠할 때 한 칸 = 30분
+    const COLORS = ["#fecaca", "#fde68a", "#bbf7d0", "#bfdbfe", "#ddd6fe", "#fbcfe8", "#a7f3d0", "#fed7aa"];
+
+    let classes = [];    // [{ day, start, end, room }]
+    let selected = -1;   // 지금 고르고 있는 수업 번호
+
+    const tt = document.getElementById("tt");
+    const editor = document.getElementById("editor");
+    const edDay = document.getElementById("ed-day");
+    const edStart = document.getElementById("ed-start");
+    const edEnd = document.getElementById("ed-end");
+    const edRoom = document.getElementById("ed-room");
+    edDay.innerHTML = DAYS.map((d) => `<option>${d}</option>`).join("");
+
+    const toMin = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
+    const toTime = (m) => String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
+    const minToPx = (m) => ((m - START_H * 60) / 60) * HOUR_PX;
+
+    // 격자 뼈대 만들기 (한 번만)
+    tt.style.setProperty("--hour", HOUR_PX + "px");
+    const bodyHeight = (END_H - START_H) * HOUR_PX;
+    let html = `<div></div>` + DAYS.map((d) => `<div class="tt-head">${d}</div>`).join("");
+    // 시각 눈금 + 요일 칸은 별도 줄로 한 번에 배치
+    html += `<div class="tt-times" style="height:${bodyHeight}px">` +
+      Array.from({ length: END_H - START_H }, (_, i) =>
+        `<span style="top:${i * HOUR_PX}px">${START_H + i}</span>`).join("") + `</div>`;
+    html += DAYS.map((d, i) => `<div class="tt-col" data-day="${d}" style="height:${bodyHeight}px"></div>`).join("");
+    tt.innerHTML = html;
+    const cols = [...tt.querySelectorAll(".tt-col")];
+
+    // 수업 사각형 다시 그리기
+    function render() {
+      cols.forEach((c) => c.querySelectorAll(".block").forEach((b) => b.remove()));
+      classes.forEach((c, i) => {
+        const col = cols.find((x) => x.dataset.day === c.day);
+        if (!col || !c.start || !c.end) return;
+        const top = Math.max(0, minToPx(toMin(c.start)));
+        const height = Math.max(14, minToPx(toMin(c.end)) - top);
+        const b = document.createElement("div");
+        b.className = "block" + (i === selected ? " selected" : "");
+        b.style.top = top + "px";
+        b.style.height = height + "px";
+        b.style.background = COLORS[i % COLORS.length];
+        // textContent로 넣어서 강의실 글자가 HTML로 해석되지 않게 해요.
+        b.textContent = c.room || "(강의실)";
+        const time = document.createElement("small");
+        time.textContent = c.start + "~" + c.end;
+        b.appendChild(time);
+        b.addEventListener("pointerdown", (e) => e.stopPropagation()); // 칠하기와 구분
+        b.addEventListener("click", () => select(i));
+        col.appendChild(b);
+      });
+    }
+
+    function select(i) {
+      selected = i;
+      editor.hidden = i < 0;
+      if (i >= 0) {
+        const c = classes[i];
+        edDay.value = c.day; edStart.value = c.start; edEnd.value = c.end; edRoom.value = c.room || "";
+      }
+      render();
+    }
+
+    // 고치는 칸에서 바꾸면 바로 반영
+    function applyEditor() {
+      if (selected < 0) return;
+      classes[selected] = { day: edDay.value, start: edStart.value, end: edEnd.value, room: edRoom.value.trim() };
+      render();
+    }
+    [edDay, edStart, edEnd, edRoom].forEach((el) => el.addEventListener("input", applyEditor));
+    document.getElementById("ed-delete").addEventListener("click", () => {
+      classes.splice(selected, 1);
+      select(-1);
+    });
+
+    // 마우스로 칠하기: 빈 곳을 누른 채 끌면 그 시간만큼 수업이 생겨요.
+    let drag = null;
+    const slotAt = (col, clientY) => {
+      const y = clientY - col.getBoundingClientRect().top;
+      const min = START_H * 60 + Math.floor(y / HOUR_PX * 60 / STEP) * STEP;
+      return Math.min(Math.max(min, START_H * 60), END_H * 60 - STEP);
+    };
+
+    cols.forEach((col) => {
+      col.addEventListener("pointerdown", (e) => {
+        if (e.target !== col) return;
+        col.setPointerCapture(e.pointerId);
+        const s = slotAt(col, e.clientY);
+        const ghost = document.createElement("div");
+        ghost.className = "ghost";
+        col.appendChild(ghost);
+        drag = { col, anchor: s, lo: s, hi: s + STEP, ghost };
+        drawGhost();
+      });
+      col.addEventListener("pointermove", (e) => {
+        if (!drag || drag.col !== col) return;
+        const cur = slotAt(col, e.clientY);
+        drag.lo = Math.min(drag.anchor, cur);
+        drag.hi = Math.max(drag.anchor, cur) + STEP;
+        drawGhost();
+      });
+      col.addEventListener("pointerup", () => {
+        if (!drag || drag.col !== col) return;
+        drag.ghost.remove();
+        classes.push({ day: col.dataset.day, start: toTime(drag.lo), end: toTime(drag.hi), room: "" });
+        drag = null;
+        select(classes.length - 1); // 방금 만든 수업을 골라서 강의실을 바로 적게 해요
+        edRoom.focus();
+      });
+      col.addEventListener("pointercancel", () => {
+        if (drag) { drag.ghost.remove(); drag = null; }
+      });
+    });
+    function drawGhost() {
+      drag.ghost.style.top = minToPx(drag.lo) + "px";
+      drag.ghost.style.height = minToPx(drag.hi) - minToPx(drag.lo) + "px";
+    }
+
+    render();
+
+    // ===== 캡처 분석: 이미지를 서버에 보내고, 결과를 격자에 채워요. =====
+    const parseBtn = document.getElementById("parse-btn");
+    const parseStatus = document.getElementById("parse-status");
+    const confirmBox = document.getElementById("confirm-box");
+    const confirmed = document.getElementById("confirmed");
+
+    // 분석에 쓸 이미지: 파일 선택이나 붙여넣기 중 마지막에 넣은 것
+    let selectedFile = null;
+    const preview = document.getElementById("preview");
+
+    function setImage(file) {
+      selectedFile = file;
+      preview.src = URL.createObjectURL(file);
+      preview.hidden = false;
+      parseStatus.textContent = "이미지를 받았어요. \"캡처 분석하기\"를 눌러 주세요.";
+    }
+
+    document.getElementById("image").addEventListener("change", (e) => {
+      if (e.target.files[0]) setImage(e.target.files[0]);
+    });
+
+    // Ctrl+V: 클립보드에 이미지가 있으면 받아요 (글자만 있으면 무시)
+    document.addEventListener("paste", (e) => {
+      const item = [...e.clipboardData.items].find((i) => i.type.startsWith("image/"));
+      if (!item) return;
+      e.preventDefault();
+      setImage(item.getAsFile());
+    });
+
+    parseBtn.addEventListener("click", async () => {
+      parseStatus.textContent = "";
+      const file = selectedFile;
+
+      if (!file) {
+        parseStatus.textContent = "먼저 시간표 캡처 파일을 골라 주세요.";
+        return;
+      }
+      if (!IMAGE_TYPES.includes(file.type)) {
+        parseStatus.textContent = "png 또는 jpg 파일만 올릴 수 있어요.";
+        return;
+      }
+      if (file.size > MAX_IMAGE_MB * 1024 * 1024) {
+        parseStatus.textContent = `파일이 너무 커요. ${MAX_IMAGE_MB}MB 이하로 올려 주세요.`;
+        return;
+      }
+
+      parseBtn.disabled = true;
+      parseStatus.textContent = "분석 중이에요… 잠시만 기다려 주세요.";
+      try {
+        const { ok, data } = await parseSchedule(roomId, file);
+        if (!ok || !Array.isArray(data.classes)) {
+          throw new Error(data.error || "분석 실패");
+        }
+        classes = data.classes.map((c) => ({ ...c }));
+        select(-1);
+        confirmed.checked = false;
+        confirmBox.hidden = false;
+        parseStatus.textContent = `${data.classes.length}개 수업을 읽었어요. 아래 시간표를 확인해 주세요. 틀렸다면 사각형을 눌러 고치거나 "캡처 분석하기"를 다시 눌러요.`;
+      } catch (e) {
+        // 실패하면 수동 입력으로 안내해요.
+        parseStatus.textContent = "캡처를 분석하지 못했어요. 아래 시간표를 직접 칠해 주세요.";
+      } finally {
+        parseBtn.disabled = false;
+      }
+    });
+
+    // ===== 저장: 검증과 계산은 서버가 하고, 여기서는 보내고 결과만 보여줘요. =====
+    document.getElementById("schedule-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      errorBox.textContent = "";
+
+      // 분석 결과를 쓴 경우, 확인했다고 체크해야 저장할 수 있어요.
+      if (!confirmBox.hidden && !confirmed.checked) {
+        errorBox.textContent = "분석 결과를 확인한 뒤 체크해 주세요.";
+        return;
+      }
+
+      const payload = {
+        nickname: document.getElementById("nickname").value.trim(),
+        preferredTimes: [...document.querySelectorAll("#preferred input:checked")].map((c) => c.value),
+        classes: classes.map((c) => ({ ...c })),
+      };
+
+      try {
+        const { ok, data } = await saveSchedule(roomId, payload);
+        if (!ok) {
+          errorBox.textContent = data.error || "저장하지 못했어요.";
+          return;
+        }
+        // 수정·삭제에 필요한 토큰은 이 브라우저에만 저장해요.
+        try {
+          localStorage.setItem(`editToken:${roomId}`, JSON.stringify(
+            { scheduleId: data.scheduleId, editToken: data.editToken }));
+        } catch (e) { /* 저장 못 해도 계속 진행 */ }
+        document.getElementById("done").textContent = "저장했어요! ✔";
+      } catch (e) {
+        errorBox.textContent = "서버에 연결할 수 없어요. 백엔드가 켜져 있는지 확인해요.";
+      }
+    });
+  </script>
+</body>
+</html>

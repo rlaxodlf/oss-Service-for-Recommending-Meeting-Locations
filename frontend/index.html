@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>모임 장소 추천</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header><a href="index.html">📍 모임 장소 추천</a></header>
+
+  <main>
+    <section class="card">
+      <h2>새 모임 방 만들기</h2>
+
+      <form id="create-form">
+        <label for="name">방 이름</label>
+        <input id="name" type="text" placeholder="예) 동아리 회식" required />
+
+        <label for="minMinutes">최소 회의 시간 (분)</label>
+        <input id="minMinutes" type="number" value="60" min="15" max="480" />
+        <p class="hint">15분 ~ 480분 사이로 입력해요.</p>
+
+        <button type="submit">방 만들기</button>
+        <p id="error" class="error"></p>
+      </form>
+    </section>
+  </main>
+
+  <script>
+    // 백엔드 서버 주소 (백엔드를 npm start 등으로 켜야 해요)
+    const API = "http://localhost:3000";
+
+    const form = document.getElementById("create-form");
+    const errorBox = document.getElementById("error");
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault(); // 페이지 새로고침 막기
+      errorBox.textContent = "";
+
+      const body = {
+        name: document.getElementById("name").value,
+        minMinutes: Number(document.getElementById("minMinutes").value),
+      };
+
+      try {
+        const res = await fetch(API + "/rooms", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          errorBox.textContent = data.error; // 서버가 보낸 오류 문구 표시
+          return;
+        }
+        // 성공하면 만든 방 화면으로 이동
+        location.href = "room.html?id=" + data.roomId;
+      } catch (e) {
+        errorBox.textContent = "서버에 연결할 수 없어요. 백엔드가 켜져 있는지 확인해요.";
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>모임 방</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header><a href="index.html">📍 모임 장소 추천</a></header>
+
+  <main>
+    <p id="error" class="error"></p>
+
+    <!-- 1단계: 방을 만들면 가장 먼저 팀원을 초대해요 -->
+    <section class="card" id="invite-card" hidden>
+      <h2>👋 팀원을 초대해요</h2>
+      <p class="hint">이 링크를 카카오톡 단체방에 보내면, 팀원이 각자 시간표를 등록할 수 있어요.</p>
+      <input id="invite-link" type="text" readonly />
+      <button id="copy-btn" type="button">초대 링크 복사</button>
+    </section>
+
+    <section class="card" id="room-card" hidden>
+      <h2 id="room-name"></h2>
+      <div class="info-row"><span>최소 회의 시간</span><span id="min-minutes"></span></div>
+      <div class="info-row"><span>참여 인원</span><span id="member-count"></span></div>
+    </section>
+
+    <section class="card" id="join-card" hidden>
+      <h2>내 시간표 등록하기</h2>
+      <p class="hint">닉네임과 수업 시간을 입력하면 팀원들과 공통 공강을 찾을 수 있어요.</p>
+      <a id="join-btn" href="#"><button type="button">참여하고 시간표 등록</button></a>
+    </section>
+
+    <section class="card" id="member-card" hidden>
+      <h2>참여 멤버</h2>
+      <ul id="member-list"></ul>
+      <p id="member-empty" class="empty">아직 참여한 사람이 없어요.</p>
+    </section>
+
+    <section class="card" id="result-card" hidden>
+      <h2>추천 결과</h2>
+      <p class="empty">일정과 장소 추천 기능은 준비 중이에요.</p>
+    </section>
+  </main>
+
+  <script>
+    const API = "http://localhost:3000";
+
+    // 주소창의 ?id=xxxx 에서 방 번호 꺼내기
+    const roomId = new URLSearchParams(location.search).get("id");
+    const errorBox = document.getElementById("error");
+
+    async function loadRoom() {
+      if (!roomId) {
+        errorBox.textContent = "방 번호가 없어요.";
+        return;
+      }
+      try {
+        const res = await fetch(API + "/rooms/" + roomId);
+        const room = await res.json();
+
+        if (!res.ok) {
+          errorBox.textContent = room.error;
+          return;
+        }
+        showRoom(room);
+      } catch (e) {
+        errorBox.textContent = "서버에 연결할 수 없어요. 백엔드가 켜져 있는지 확인해요.";
+      }
+    }
+
+    function showRoom(room) {
+      document.getElementById("room-name").textContent = room.name;
+      document.getElementById("min-minutes").textContent = room.minMinutes + "분";
+      document.getElementById("member-count").textContent = room.members.length + "명";
+
+      const list = document.getElementById("member-list");
+      room.members.forEach((m) => {
+        const li = document.createElement("li");
+        li.textContent = m.name || m; // 멤버 데이터 형태가 정해지면 수정
+        list.appendChild(li);
+      });
+      document.getElementById("member-empty").hidden = room.members.length > 0;
+
+      document.getElementById("invite-link").value = location.href;
+      document.getElementById("invite-card").hidden = false;
+      document.getElementById("join-btn").href = "schedule.html?id=" + roomId;
+      document.getElementById("join-card").hidden = false;
+      document.getElementById("room-card").hidden = false;
+      document.getElementById("member-card").hidden = false;
+      document.getElementById("result-card").hidden = false;
+    }
+
+    // 초대 링크 복사
+    document.getElementById("copy-btn").addEventListener("click", async () => {
+      await navigator.clipboard.writeText(location.href);
+      document.getElementById("copy-btn").textContent = "복사됨! ✔";
+    });
+
+    loadRoom();
+  </script>
+</body>
+</html>
