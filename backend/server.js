@@ -5,11 +5,15 @@ require("dotenv").config();
 
 const roomsRouter = require("./routes/rooms");
 const schedulesRouter = require("./routes/schedules");
+const slotsRouter = require("./routes/slots");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+app.use("/rooms", roomsRouter);
+app.use("/rooms", schedulesRouter);
+app.use("/rooms", slotsRouter);
 
 app.get("/", (req, res) => {
     res.json({
