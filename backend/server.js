@@ -4,7 +4,7 @@ const cors = require("cors");
 require("dotenv").config();
 
 const roomsRouter = require("./routes/rooms");
-
+const schedulesRouter = require("./routes/schedules");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -24,6 +24,7 @@ app.get("/health", (req, res) => {
 
 // 방 관리 API 연결
 app.use("/rooms", roomsRouter);
+app.use("/rooms", schedulesRouter);
 
 // 서버 오류 처리
 app.use((error, req, res, next) => {
