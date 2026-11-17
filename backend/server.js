@@ -6,6 +6,8 @@ require("dotenv").config();
 const roomsRouter = require("./routes/rooms");
 const schedulesRouter = require("./routes/schedules");
 const slotsRouter = require("./routes/slots");
+const meetupsRouter = require("./routes/meetups");
+const stationsRouter = require("./routes/stations");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -14,6 +16,10 @@ app.use(express.json());
 app.use("/rooms", roomsRouter);
 app.use("/rooms", schedulesRouter);
 app.use("/rooms", slotsRouter);
+
+// 일반 모드(친구 약속) API
+app.use("/meetups", meetupsRouter);
+app.use("/stations", stationsRouter);
 
 app.get("/", (req, res) => {
     res.json({
