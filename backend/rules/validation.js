@@ -1,5 +1,5 @@
 
-const DAYS = ["mon", "tue", "wed", "thu", "fri"];
+const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const PREFERENCES = ["morning", "afternoon", "evening"];
 
 const DAY_MAP = {
@@ -7,7 +7,9 @@ const DAY_MAP = {
     "화": "tue",
     "수": "wed",
     "목": "thu",
-    "금": "fri"
+    "금": "fri",
+    "토": "sat",
+    "일": "sun"
 };
 
 const PREFERENCE_MAP = {

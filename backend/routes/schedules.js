@@ -13,12 +13,14 @@ const DAY_MAP = {
     "목": "thu",
     "금": "fri",
     "토": "sat",
+    "일": "sun",
     "mon": "mon",
     "tue": "tue",
     "wed": "wed",
     "thu": "thu",
     "fri": "fri",
-    "sat": "sat"
+    "sat": "sat",
+    "sun": "sun"
 };
 
 const PREFERENCE_MAP = {
