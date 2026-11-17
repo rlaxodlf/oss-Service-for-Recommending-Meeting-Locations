@@ -97,7 +97,7 @@
         <div class="card-head">
           <div>
             <h2>언제 만날까요?</h2>
-            <p class="sub">모두 비는 평일 09:00~18:00 중에서 골랐어요</p>
+            <p class="sub">모두 비는 시간을 09:00~18:00 중에서 골랐어요 (주말 포함)</p>
           </div>
           <button id="refresh-btn" class="icon-btn" type="button" aria-label="새로고침" title="새로고침">↻</button>
         </div>
@@ -123,7 +123,7 @@
     const params = new URLSearchParams(location.search);
     const roomId = params.get("id");
     const errorBox = document.getElementById("error");
-    const DAY_FULL = { mon: "월요일", tue: "화요일", wed: "수요일", thu: "목요일", fri: "금요일" };
+    const DAY_FULL = { mon: "월요일", tue: "화요일", wed: "수요일", thu: "목요일", fri: "금요일", sat: "토요일", sun: "일요일" };
     const SHOW_COUNT = 4; // 1위를 뺀 나머지 중 처음에 보여 줄 개수
 
     let allSlots = [];

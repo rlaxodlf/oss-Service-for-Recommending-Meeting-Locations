@@ -17,10 +17,9 @@ const USE_MOCK_PARSE = true;
 const MAX_IMAGE_MB = 5;
 const IMAGE_TYPES = ["image/png", "image/jpeg"];
 
-// 화면에서는 한글 요일·시간대를 쓰고, 서버에는 영어 코드로 보낸다.
-// 서버는 월~금만 받으므로 화면에도 토요일을 두지 않는다.
-const DAYS = ["월", "화", "수", "목", "금"];
-const DAY_CODES = { "월": "mon", "화": "tue", "수": "wed", "목": "thu", "금": "fri" };
+// 화면에서는 한글 요일·시간대를 쓰고, 서버에는 영어 코드로 보낸다. 주말 수업도 받는다.
+const DAYS = ["월", "화", "수", "목", "금", "토", "일"];
+const DAY_CODES = { "월": "mon", "화": "tue", "수": "wed", "목": "thu", "금": "fri", "토": "sat", "일": "sun" };
 const PREFERRED_TIMES = ["오전", "오후", "저녁"];
 const PREFERRED_CODES = { "오전": "morning", "오후": "afternoon", "저녁": "evening" };
 
@@ -177,7 +176,7 @@ function clearEditToken(roomId) {
 
 // 일반 모드는 주말도 쓴다
 const WEEK_DAYS = ["월", "화", "수", "목", "금", "토", "일"];
-const WEEK_DAY_CODES = { ...DAY_CODES, "토": "sat", "일": "sun" };
+const WEEK_DAY_CODES = { ...DAY_CODES };
 const WEEK_DAY_LABELS = invert(WEEK_DAY_CODES);
 
 // 화면 형식 { nickname, stationId, busy: [{ day: "토", start, end }] | null, preferredTimes }

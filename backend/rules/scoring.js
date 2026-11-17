@@ -1,3 +1,6 @@
+// 점수가 같을 때 정렬할 요일 순서 (알파벳순이면 fri가 mon보다 앞선다)
+const DAY_ORDER = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+
 // 시간을 분 단위로 변환
 function toMinutes(time) {
     const [hour, minute] = time.split(":").map(Number);
@@ -64,7 +67,7 @@ function rankSlots(slots, members = []) {
         }))
         .sort((a, b) =>
             b.score - a.score ||
-            a.day.localeCompare(b.day) ||
+            DAY_ORDER.indexOf(a.day) - DAY_ORDER.indexOf(b.day) ||
             a.start.localeCompare(b.start)
         );
 }

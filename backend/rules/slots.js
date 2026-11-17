@@ -1,5 +1,5 @@
 
-const DAYS = ["mon", "tue", "wed", "thu", "fri"];
+const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
 // 회의 가능한 시간: 오전 9시 ~ 오후 6시
 const DAY_START = 9 * 60;
