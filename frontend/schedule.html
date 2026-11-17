@@ -10,7 +10,7 @@
     .checks input { width: auto; }
 
     /* ===== 시간표 격자 ===== */
-    .tt { --hour: 48px; display: grid; grid-template-columns: 38px repeat(6, 1fr); font-size: 12px; user-select: none; }
+    .tt { --hour: 48px; display: grid; grid-template-columns: 38px repeat(var(--days, 5), 1fr); font-size: 12px; user-select: none; }
     .tt-head { text-align: center; font-weight: bold; padding: 6px 0; border-bottom: 1px solid var(--border); }
     .tt-times { position: relative; }
     .tt-times span { position: absolute; right: 4px; transform: translateY(-50%); color: var(--muted); }
@@ -61,7 +61,7 @@
     <p><a id="back-link" href="#">← 방으로 돌아가기</a></p>
 
     <form class="card" id="schedule-form">
-      <h2>내 시간표 등록</h2>
+      <h2 id="form-title">내 시간표 등록</h2>
 
       <label for="nickname">닉네임</label>
       <input id="nickname" type="text" placeholder="예) 민영" required />
@@ -95,7 +95,8 @@
       <label>선호하는 시간대 (선택)</label>
       <div class="checks" id="preferred"></div>
 
-      <button type="submit">시간표 저장</button>
+      <button id="submit-btn" type="submit">시간표 저장</button>
+      <button id="delete-btn" class="danger" type="button" hidden>내 시간표 삭제</button>
       <p id="error" class="error"></p>
       <p id="done" class="hint"></p>
     </form>
@@ -137,6 +138,7 @@
 
     // 격자 뼈대(요일 헤더, 시각 눈금, 요일별 칸)를 한 번만 생성한다
     tt.style.setProperty("--hour", HOUR_PX + "px");
+    tt.style.setProperty("--days", DAYS.length);
     const bodyHeight = (END_H - START_H) * HOUR_PX;
     let html = `<div></div>` + DAYS.map((d) => `<div class="tt-head">${d}</div>`).join("");
     // 시각 눈금 열과 요일 열을 같은 행에 배치한다
@@ -304,14 +306,66 @@
       }
     });
 
+    // ===== 내 시간표 불러오기: 이 브라우저에 수정 토큰이 있으면 등록 대신 수정 화면으로 연다 =====
+    const submitBtn = document.getElementById("submit-btn");
+    const deleteBtn = document.getElementById("delete-btn");
+    const doneBox = document.getElementById("done");
+    let editing = null; // { scheduleId, editToken } — 수정 중일 때만 값이 있다
+
+    async function loadMine() {
+      const saved = loadEditToken(roomId);
+      if (!saved) return;
+      try {
+        const { ok, data } = await getSchedules(roomId);
+        if (!ok) return;
+        const mine = data.schedules.find((s) => s.scheduleId === saved.scheduleId);
+        if (!mine) {
+          clearEditToken(roomId); // 이미 삭제된 시간표의 토큰은 지운다
+          return;
+        }
+        const schedule = fromServerSchedule(mine);
+        editing = saved;
+        document.getElementById("nickname").value = schedule.nickname;
+        document.querySelectorAll("#preferred input").forEach((c) => {
+          c.checked = schedule.preferredTimes.includes(c.value);
+        });
+        classes = schedule.classes;
+        select(-1);
+        document.getElementById("form-title").textContent = "내 시간표 수정";
+        submitBtn.textContent = "수정 내용 저장";
+        deleteBtn.hidden = false;
+      } catch (e) {
+        // 불러오지 못하면 새로 등록하는 화면 그대로 둔다
+      }
+    }
+
+    // 결과를 보러 방으로 돌아가는 링크를 완료 문구 뒤에 붙인다
+    function showDone(message) {
+      doneBox.textContent = message + " ";
+      const link = document.createElement("a");
+      link.href = "room.html?id=" + roomId;
+      link.textContent = "방으로 돌아가 결과 보기 →";
+      doneBox.appendChild(link);
+    }
+
     // ===== 저장: 검증과 계산은 서버가 담당하고, 화면은 요청 전송과 결과 표시만 한다 =====
     document.getElementById("schedule-form").addEventListener("submit", async (event) => {
       event.preventDefault();
       errorBox.textContent = "";
+      doneBox.textContent = "";
 
       // 분석 결과를 사용한 경우, 사용자가 확인 체크를 해야 저장할 수 있다
       if (!confirmBox.hidden && !confirmed.checked) {
         errorBox.textContent = "분석 결과를 확인한 뒤 체크해 주세요.";
+        return;
+      }
+
+      // 강의실이 빈 수업이 있으면 그 수업을 선택해 바로 입력하게 한다 (서버도 같은 검사를 한다)
+      const missing = classes.findIndex((c) => !c.room);
+      if (missing >= 0) {
+        select(missing);
+        edRoom.focus();
+        errorBox.textContent = "강의실을 입력하지 않은 수업이 있어요. 선택된 수업의 강의실을 입력해 주세요.";
         return;
       }
 
@@ -321,22 +375,58 @@
         classes: classes.map((c) => ({ ...c })),
       };
 
+      submitBtn.disabled = true;
       try {
-        const { ok, data } = await saveSchedule(roomId, payload);
+        const { ok, status, data } = editing
+          ? await updateSchedule(roomId, editing.scheduleId, editing.editToken, payload)
+          : await saveSchedule(roomId, payload);
+
         if (!ok) {
-          errorBox.textContent = data.error || "저장하지 못했어요.";
+          if (editing && (status === 403 || status === 404)) {
+            errorBox.textContent = "이 시간표를 수정할 수 없어요. 새로고침한 뒤 다시 등록해 주세요.";
+            clearEditToken(roomId);
+            return;
+          }
+          errorBox.textContent = errorText(data, "저장하지 못했어요.");
           return;
         }
-        // 수정·삭제에 필요한 토큰을 이 브라우저의 localStorage에 보관한다
-        try {
-          localStorage.setItem(`editToken:${roomId}`, JSON.stringify(
-            { scheduleId: data.scheduleId, editToken: data.editToken }));
-        } catch (e) { /* localStorage를 쓸 수 없어도 등록 자체는 계속 진행한다 */ }
-        document.getElementById("done").textContent = "저장했어요! ✔";
+
+        if (editing) {
+          showDone("수정했어요! ✔");
+        } else {
+          // 수정·삭제에 필요한 토큰을 이 브라우저에 보관하고, 이후에는 수정 모드로 전환한다
+          storeEditToken(roomId, data.scheduleId, data.editToken);
+          editing = { scheduleId: data.scheduleId, editToken: data.editToken };
+          document.getElementById("form-title").textContent = "내 시간표 수정";
+          submitBtn.textContent = "수정 내용 저장";
+          deleteBtn.hidden = false;
+          showDone("저장했어요! ✔");
+        }
+      } catch (e) {
+        errorBox.textContent = "서버에 연결할 수 없어요. 백엔드가 켜져 있는지 확인해요.";
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+
+    // ===== 삭제 =====
+    deleteBtn.addEventListener("click", async () => {
+      if (!editing || !confirm("내 시간표를 삭제할까요? 팀 결과에서도 빠져요.")) return;
+      errorBox.textContent = "";
+      try {
+        const { ok, data } = await deleteSchedule(roomId, editing.scheduleId, editing.editToken);
+        if (!ok) {
+          errorBox.textContent = errorText(data, "삭제하지 못했어요.");
+          return;
+        }
+        clearEditToken(roomId);
+        location.href = "room.html?id=" + roomId;
       } catch (e) {
         errorBox.textContent = "서버에 연결할 수 없어요. 백엔드가 켜져 있는지 확인해요.";
       }
     });
+
+    loadMine();
   </script>
 </body>
 </html>
