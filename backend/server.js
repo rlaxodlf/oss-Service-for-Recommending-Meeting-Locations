@@ -13,6 +13,8 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+
+// 방 관리 API 연결
 app.use("/rooms", roomsRouter);
 app.use("/rooms", schedulesRouter);
 app.use("/rooms", slotsRouter);
@@ -31,10 +33,6 @@ app.get("/", (req, res) => {
 app.get("/health", (req, res) => {
     res.json({ status: "ok" });
 });
-
-// 방 관리 API 연결
-app.use("/rooms", roomsRouter);
-app.use("/rooms", schedulesRouter);
 
 // 서버 오류 처리
 app.use((error, req, res, next) => {
