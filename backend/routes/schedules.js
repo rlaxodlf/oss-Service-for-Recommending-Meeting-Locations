@@ -5,12 +5,67 @@ const { readRooms, writeRooms } = require("../services/storage");
 const { validateSchedule } = require("../rules/validation");
 
 const router = express.Router();
+// 프론트엔드 데이터를 백엔드 형식으로 변환
+const DAY_MAP = {
+    "월": "mon",
+    "화": "tue",
+    "수": "wed",
+    "목": "thu",
+    "금": "fri",
+    "토": "sat",
+    "mon": "mon",
+    "tue": "tue",
+    "wed": "wed",
+    "thu": "thu",
+    "fri": "fri",
+    "sat": "sat"
+};
+
+const PREFERENCE_MAP = {
+    "오전": "morning",
+    "오후": "afternoon",
+    "저녁": "evening",
+    "morning": "morning",
+    "afternoon": "afternoon",
+    "evening": "evening"
+};
+
+function normalizeSchedule(data) {
+    if (!data || typeof data !== "object" || Array.isArray(data)) {
+        return data;
+    }
+
+    return {
+        ...data,
+
+        classes: Array.isArray(data.classes)
+            ? data.classes.map(cls => {
+                if (!cls || typeof cls !== "object" || Array.isArray(cls)) {
+                    return cls;
+                }
+
+                return {
+                    ...cls,
+                    day: DAY_MAP[cls.day] ?? cls.day,
+                    building: cls.building ?? cls.room
+                };
+            })
+            : data.classes,
+
+        preferred: Array.isArray(data.preferredTimes ?? data.preferred)
+            ? (data.preferredTimes ?? data.preferred).map(
+                p => PREFERENCE_MAP[p] ?? p
+            )
+            : (data.preferredTimes ?? data.preferred ?? [])
+    };
+}
 
 // POST /rooms/:id/schedules
 // 팀원 시간표 등록
 router.post("/:id/schedules", async (req, res, next) => {
     try {
-        const errors = validateSchedule(req.body);
+        const normalizedData = normalizeSchedule(req.body);
+        const errors = validateSchedule(normalizedData);
 
         if (errors.length > 0) {
             return res.status(400).json({
@@ -28,7 +83,7 @@ router.post("/:id/schedules", async (req, res, next) => {
             });
         }
 
-        const nickname = req.body.nickname.trim();
+        const nickname = normalizedData.nickname.trim();
 
         if (room.members.some(m => m.nickname === nickname)) {
             return res.status(409).json({
@@ -43,17 +98,17 @@ router.post("/:id/schedules", async (req, res, next) => {
             .digest("hex");
 
         const member = {
-            scheduleId,
-            nickname,
-            classes: req.body.classes.map(cls => ({
-                day: cls.day,
-                start: cls.start,
-                end: cls.end,
-                building: cls.building.trim()
-            })),
-            preferred: req.body.preferred || [],
-            editTokenHash
-        };
+                scheduleId,
+                nickname,
+                classes: normalizedData.classes.map(cls => ({
+                    day: cls.day,
+                    start: cls.start,
+                    end: cls.end,
+                    building: cls.building.trim()
+        })),
+    preferred: normalizedData.preferred,
+    editTokenHash
+};
 
         room.members.push(member);
         await writeRooms(rooms);

@@ -2,6 +2,25 @@
 const DAYS = ["mon", "tue", "wed", "thu", "fri"];
 const PREFERENCES = ["morning", "afternoon", "evening"];
 
+const DAY_MAP = {
+    "월": "mon",
+    "화": "tue",
+    "수": "wed",
+    "목": "thu",
+    "금": "fri"
+};
+
+const PREFERENCE_MAP = {
+    "오전": "morning",
+    "오후": "afternoon",
+    "저녁": "evening"
+};
+
+// 요일을 영어 형식으로 변환
+function normalizeDay(day) {
+    return DAY_MAP[day] || day;
+}
+
 // HH:MM 형식인지 확인하고 분 단위로 변환
 function toMinutes(time) {
     if (typeof time !== "string") return null;
@@ -12,6 +31,32 @@ function toMinutes(time) {
     return Number(match[1]) * 60 + Number(match[2]);
 }
 
+// 프론트엔드 데이터를 백엔드 형식으로 변환
+function normalizeSchedule(data) {
+    if (!data || typeof data !== "object" || Array.isArray(data)) {
+        return data;
+    }
+
+    return {
+        ...data,
+        classes: Array.isArray(data.classes)
+            ? data.classes.map(cls => {
+                if (!cls || typeof cls !== "object" || Array.isArray(cls)) {
+                    return cls;
+                }
+
+                return {
+                    ...cls,
+                    day: normalizeDay(cls.day),
+                    building: cls.building || cls.room
+                };
+            })
+            : data.classes,
+        preferred: (data.preferred || data.preferredTimes || [])
+            .map(p => PREFERENCE_MAP[p] || p)
+    };
+}
+
 // 시간표 검증
 function validateSchedule(data) {
     const errors = [];
@@ -19,6 +64,8 @@ function validateSchedule(data) {
     if (!data || typeof data !== "object" || Array.isArray(data)) {
         return ["시간표 데이터가 올바르지 않습니다."];
     }
+
+    data = normalizeSchedule(data);
 
     if (
         typeof data.nickname !== "string" ||
@@ -97,4 +144,8 @@ function validateSchedule(data) {
     return errors;
 }
 
-module.exports = { validateSchedule, toMinutes };
+module.exports = {
+    validateSchedule,
+    normalizeSchedule,
+    toMinutes
+};

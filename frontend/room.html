@@ -86,10 +86,14 @@
       document.getElementById("member-count").textContent = room.members.length + "명";
 
       const list = document.getElementById("member-list");
+
+      // 기존 목록 초기화
       list.replaceChildren();
+
+      // 등록된 멤버 닉네임 표시
       room.members.forEach((m) => {
         const li = document.createElement("li");
-        li.textContent = m.nickname;
+        li.textContent = typeof m === "string" ? m : m.nickname;
         list.appendChild(li);
       });
       document.getElementById("member-empty").hidden = room.members.length > 0;
