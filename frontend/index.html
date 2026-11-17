@@ -4,52 +4,228 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>모임 장소 추천</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
   <link rel="stylesheet" href="style.css" />
+  <style>
+    .hero { padding: 12px 4px 4px; }
+    .hero h1 { font-size: 28px; }
+    .hero h1 em { font-style: normal; color: var(--primary); }
+
+    /* 모드 고르기 */
+    .modes { display: grid; gap: 12px; margin-top: 24px; }
+    .mode {
+      display: flex; align-items: center; gap: 16px; width: 100%;
+      padding: 20px; border: 1px solid var(--border); border-radius: var(--radius);
+      background: white; font: inherit; text-align: left; color: var(--text); cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s, transform 0.05s;
+    }
+    .mode:hover { border-color: var(--primary); box-shadow: 0 4px 16px rgba(79, 70, 229, 0.1); }
+    .mode:active { transform: scale(0.99); }
+    .mode .icon { flex: none; width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center; font-size: 26px; background: var(--primary-soft); }
+    .mode.general .icon { background: #fff1f2; }
+    .mode b { display: block; font-size: 17px; }
+    .mode small { display: block; color: var(--muted); font-size: 14px; margin-top: 2px; }
+    .mode .arrow { margin-left: auto; color: var(--muted); font-size: 20px; }
+
+    /* 이용 순서 세 단계 */
+    .steps { list-style: none; padding: 0; margin: 16px 0 20px; display: grid; gap: 10px; }
+    .steps li { display: flex; align-items: center; gap: 12px; font-size: 15px; }
+    .steps .num {
+      flex: none; width: 28px; height: 28px; border-radius: 50%;
+      background: var(--primary-soft); color: var(--primary);
+      display: grid; place-items: center; font-weight: 800; font-size: 14px;
+    }
+    .switch { display: inline-block; margin-bottom: 12px; }
+
+    /* 내 기본 시간표 카드 */
+    .mine-card { display: flex; align-items: center; gap: 14px; text-decoration: none; color: var(--text); }
+    .mine-card:hover { border-color: var(--primary); }
+    .mine-card.todo { border: 2px dashed #c7d2fe; background: #fafaff; }
+    .mine-card .mine-icon { font-size: 26px; }
+    .mine-card .grow { flex: 1; min-width: 0; }
+    .mine-card b { display: block; font-size: 15px; }
+    .mine-card small { display: block; color: var(--muted); font-size: 13px; }
+    .mine-card .btn { flex: none; }
+    .divider { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; margin: 18px 0 12px; }
+    .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+  </style>
 </head>
 <body>
-  <header><a href="index.html">📍 모임 장소 추천</a></header>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="index.html"><span class="brand-mark">📍</span>모임 장소 추천</a>
+    </div>
+  </header>
 
   <main>
-    <section class="card">
-      <h2>새 모임 방 만들기</h2>
+    <!-- 1단계: 누가 쓰는지 고른다 -->
+    <section id="choose">
+      <div class="hero">
+        <h1><em>언제, 어디서</em><br />만날지 한 번에 정해요</h1>
+        <p class="sub">어떤 모임인지 골라 주세요.</p>
+      </div>
+      <div class="modes">
+        <button class="mode" type="button" data-mode="student">
+          <span class="icon">🎓</span>
+          <span><b>대학생</b><small>조별과제 회의 · 시간표로 공강 찾기</small></span>
+          <span class="arrow">›</span>
+        </button>
+        <button class="mode general" type="button" data-mode="general">
+          <span class="icon">🙋</span>
+          <span><b>일반</b><small>친구 약속 · 모두에게 가운데인 핫플 역 찾기</small></span>
+          <span class="arrow">›</span>
+        </button>
+      </div>
+    </section>
 
-      <form id="create-form">
-        <label for="name">방 이름</label>
-        <input id="name" type="text" placeholder="예) 동아리 회식" required />
+    <!-- 2단계: 고른 모드에 맞는 방 만들기 -->
+    <section id="create" hidden>
+      <button class="btn btn-text btn-sm switch" id="switch-btn" type="button">← 다시 고르기</button>
+      <div class="hero">
+        <h1 id="create-title"></h1>
+        <ol class="steps" id="steps"></ol>
+      </div>
 
-        <label for="minMinutes">최소 회의 시간 (분)</label>
-        <input id="minMinutes" type="number" value="60" min="15" max="480" />
-        <p class="hint">15분 ~ 480분 사이로 입력해요.</p>
+      <!-- 내 기본 시간표: 한 번 넣어 두면 방에 들어갈 때마다 자동으로 채워진다 -->
+      <a class="card mine-card" id="mine-card" href="#">
+        <span class="mine-icon">📋</span>
+        <span class="grow"><b id="mine-title"></b><small id="mine-status"></small></span>
+        <span class="btn btn-soft btn-sm" id="mine-action"></span>
+      </a>
 
-        <button type="submit">방 만들기</button>
+      <div class="divider">새로 만들기</div>
+
+      <form class="card" id="create-form">
+        <div class="field">
+          <label class="field-label" for="name" id="name-label">방 이름</label>
+          <input id="name" type="text" maxlength="40" required autocomplete="off" />
+        </div>
+
+        <div class="field">
+          <span class="field-label" id="min-label"></span>
+          <div class="chips" id="min-minutes">
+            <label class="chip"><input type="radio" name="minMinutes" value="30" /><span>30분</span></label>
+            <label class="chip"><input type="radio" name="minMinutes" value="60" checked /><span>1시간</span></label>
+            <label class="chip"><input type="radio" name="minMinutes" value="90" /><span>1시간 30분</span></label>
+            <label class="chip"><input type="radio" name="minMinutes" value="120" /><span>2시간</span></label>
+            <label class="chip"><input type="radio" name="minMinutes" value="180" /><span>3시간</span></label>
+          </div>
+          <p class="hint">이보다 짧게 비는 시간은 추천에서 빠져요.</p>
+        </div>
+
+        <button class="btn btn-primary btn-block" id="create-btn" type="submit">방 만들기</button>
         <p id="error" class="error"></p>
       </form>
     </section>
   </main>
 
   <script src="api.js"></script>
+  <script src="ui.js"></script>
   <script>
+    // 모드별 문구와 동작
+    const MODES = {
+      student: {
+        title: "조별과제 회의,<br />공강 맞추기",
+        steps: ["방을 만들고 링크를 단톡방에 공유해요", "팀원이 각자 시간표를 등록해요", "모두 비는 시간을 추천받아요"],
+        nameLabel: "방 이름",
+        placeholder: "예) 소프트웨어공학 3조",
+        minLabel: "회의는 최소 얼마나 할까요?",
+        create: createRoom,
+        next: (data) => "room.html?id=" + data.roomId + "&new=1",
+      },
+      general: {
+        title: "친구 약속,<br />가운데 핫플에서",
+        steps: ["약속을 만들고 링크를 친구들에게 보내요", "각자 사는 곳 근처 역을 골라요", "모두 오기 좋은 핫플 역을 추천받아요"],
+        nameLabel: "약속 이름",
+        placeholder: "예) 고등학교 친구들 연말 모임",
+        minLabel: "최소 얼마나 만날까요? (일정을 넣는 경우)",
+        create: createMeetup,
+        next: (data) => "meetup.html?id=" + data.meetupId + "&new=1",
+      },
+    };
+
+    let mode = null;
     const form = document.getElementById("create-form");
     const errorBox = document.getElementById("error");
+    const createBtn = document.getElementById("create-btn");
+
+    function choose(next) {
+      mode = next;
+      const m = MODES[mode];
+      document.getElementById("create-title").innerHTML = m.title; // 고정 문구만 들어간다
+      document.getElementById("steps").innerHTML = m.steps
+        .map((s, i) => `<li><span class="num">${i + 1}</span>${s}</li>`).join("");
+      document.getElementById("name-label").textContent = m.nameLabel;
+      document.getElementById("name").placeholder = m.placeholder;
+      document.getElementById("min-label").textContent = m.minLabel;
+      showMineCard();
+      document.getElementById("choose").hidden = true;
+      document.getElementById("create").hidden = false;
+      history.replaceState(null, "", "index.html?mode=" + mode);
+    }
+
+    document.querySelectorAll(".mode").forEach((btn) =>
+      btn.addEventListener("click", () => choose(btn.dataset.mode)));
+
+    document.getElementById("switch-btn").addEventListener("click", () => {
+      document.getElementById("create").hidden = true;
+      document.getElementById("choose").hidden = false;
+      errorBox.textContent = "";
+      history.replaceState(null, "", "index.html");
+    });
+
+    // 저장해 둔 기본 시간표가 있는지에 따라 카드 문구를 바꾼다
+    function showMineCard() {
+      const profile = loadMyProfile(mode);
+      const card = document.getElementById("mine-card");
+      const isStudent = mode === "student";
+      card.href = (isStudent ? "schedule.html" : "meetup-join.html") + "?mine=1";
+      card.classList.toggle("todo", !profile);
+      document.getElementById("mine-title").textContent = isStudent ? "내 시간표" : "내 출발역·일정";
+      document.getElementById("mine-action").textContent = profile ? "수정" : "넣기";
+
+      let status;
+      if (!profile) {
+        status = isStudent
+          ? "한 번 넣어 두면 방마다 다시 칠할 필요 없어요"
+          : "한 번 넣어 두면 약속마다 다시 고를 필요 없어요";
+      } else if (isStudent) {
+        status = `수업 ${profile.classes.length}개 저장됨 · 방에 들어가면 자동으로 채워져요`;
+      } else {
+        status = `${profile.stationName ?? "출발역"}역 출발` + (profile.busy ? ` · 일정 ${profile.busy.length}개` : "") + " 저장됨";
+      }
+      document.getElementById("mine-status").textContent = status;
+    }
+
+    // ?mode=student 처럼 주소로 바로 들어오면 고르기 단계를 건너뛴다
+    const initialParams = new URLSearchParams(location.search);
+    const initial = initialParams.get("mode");
+    if (MODES[initial]) choose(initial);
+    if (initialParams.has("mineSaved")) showToast("내 정보를 저장했어요 ✔ 이제 방에 들어가면 자동으로 채워져요");
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault(); // 폼 기본 동작(페이지 새로고침)을 막고 fetch로 직접 요청한다
       errorBox.textContent = "";
 
       const name = document.getElementById("name").value;
-      const minMinutes = Number(document.getElementById("minMinutes").value);
+      const minMinutes = Number(form.querySelector("input[name=minMinutes]:checked").value);
 
+      createBtn.disabled = true;
+      createBtn.textContent = "만드는 중…";
       try {
-        const { ok, data } = await createRoom(name, minMinutes);
+        const { ok, data } = await MODES[mode].create(name, minMinutes);
 
         if (!ok) {
           errorBox.textContent = errorText(data); // 서버가 보낸 오류 메시지를 화면에 표시한다
           return;
         }
-        // 성공하면 생성된 방의 화면으로 이동한다
-        location.href = "room.html?id=" + data.roomId;
+        // 성공하면 만든 방으로 이동한다. new=1이면 방 화면이 공유부터 안내한다
+        location.href = MODES[mode].next(data);
       } catch (e) {
         errorBox.textContent = "서버에 연결할 수 없어요. 백엔드가 켜져 있는지 확인해요.";
+      } finally {
+        createBtn.disabled = false;
+        createBtn.textContent = "방 만들기";
       }
     });
   </script>

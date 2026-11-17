@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>약속</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .pill { background: white; border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px; font-size: 13px; color: var(--muted); }
+    .pill b { color: var(--text); }
+
+    .card.highlight { border: 2px solid var(--primary); background: linear-gradient(180deg, var(--primary-soft), white 70%); }
+    .share-row { display: flex; gap: 8px; }
+    .share-row input { flex: 1; min-width: 0; font-size: 14px; color: var(--muted); background: #f9fafb; }
+    .share-row .btn { flex: none; }
+
+    .members { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+    .member { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border: 1px solid var(--border); border-radius: 999px; font-size: 14px; font-weight: 600; }
+    .member .from { color: var(--muted); font-weight: 500; }
+    .avatar { width: 26px; height: 26px; border-radius: 50%; color: white; display: grid; place-items: center; font-size: 12px; font-weight: 800; }
+    .me-badge { font-size: 11px; font-weight: 700; color: var(--primary); background: var(--primary-soft); border-radius: 999px; padding: 1px 6px; }
+
+    /* 분위기 필터: 가로로 넘겨 본다 */
+    .filter { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 12px; scrollbar-width: none; }
+    .filter .chip span { padding: 6px 12px; font-size: 14px; white-space: nowrap; }
+    .center-note { font-size: 13px; color: var(--muted); margin: 0 0 10px; }
+
+    /* 노선 배지 */
+    .lines { display: inline-flex; gap: 3px; vertical-align: 2px; margin-left: 6px; }
+    .line { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; color: white; font-size: 10px; font-weight: 800; display: inline-grid; place-items: center; }
+
+    /* 1위 역 */
+    .best { border-radius: 14px; background: var(--primary); color: white; padding: 18px; margin-bottom: 10px; }
+    .best .label { font-size: 13px; font-weight: 700; opacity: 0.85; }
+    .best .name { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; margin: 4px 0 2px; }
+    .best .desc { font-size: 14px; opacity: 0.9; }
+    .best .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .best .tag { background: rgba(255, 255, 255, 0.18); border-radius: 999px; padding: 3px 10px; font-size: 12px; }
+    .bars { margin-top: 14px; display: grid; gap: 6px; }
+    .bar-row { display: grid; grid-template-columns: 64px 1fr 84px; align-items: center; gap: 8px; font-size: 13px; }
+    .bar-row .min small { font-weight: 500; opacity: 0.8; margin-left: 4px; }
+    .bar-row .who { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .bar { height: 8px; border-radius: 999px; background: rgba(255, 255, 255, 0.2); overflow: hidden; }
+    .bar i { display: block; height: 100%; border-radius: 999px; background: white; }
+    .bar-row .min { text-align: right; font-weight: 700; }
+
+    .rank-list { list-style: none; margin: 0; padding: 0; }
+    .rank-item { display: flex; align-items: center; gap: 12px; padding: 12px 4px; border-bottom: 1px solid var(--border); }
+    .rank-item:last-child { border-bottom: none; }
+    .rank-item .rank { flex: none; width: 24px; color: var(--muted); font-weight: 700; font-size: 14px; text-align: center; }
+    .rank-item .info { flex: 1; min-width: 0; }
+    .rank-item .title { font-weight: 700; }
+    .rank-item .detail { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .badge { flex: none; font-size: 13px; font-weight: 700; color: var(--primary); background: var(--primary-soft); border-radius: 999px; padding: 3px 10px; white-space: nowrap; }
+
+    /* 투표 현황 */
+    .vote-summary { background: var(--primary-soft); color: var(--primary-dark); border-radius: 12px; padding: 10px 12px; font-size: 13px; margin-bottom: 12px; }
+    .vote-summary.decided { background: #ecfdf5; color: #047857; }
+    .vote-badge { margin-left: 6px; font-size: 12px; font-weight: 700; color: var(--primary); background: var(--primary-soft); border-radius: 999px; padding: 1px 8px; vertical-align: 2px; }
+    .vote-badge.light { color: white; background: rgba(255, 255, 255, 0.2); }
+
+    /* 1위 카드 아래 펼치기 버튼 */
+    .best-toggle { margin-top: 14px; width: 100%; padding: 10px; border: none; border-radius: 10px; background: rgba(255, 255, 255, 0.16); color: white; font: inherit; font-weight: 700; font-size: 14px; cursor: pointer; }
+    .best-toggle:hover { background: rgba(255, 255, 255, 0.24); }
+
+    /* 2위부터: 누르면 펼쳐지는 줄 */
+    .rank-item.place { display: block; padding: 0; }
+    .place-head { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 4px; border: none; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+    .place-head:hover { background: #fafafa; }
+    .place-head .info { flex: 1; min-width: 0; display: block; }
+    .place-head .title { display: block; font-weight: 700; }
+    .place-head .detail-line { display: block; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .place-head .chev { flex: none; color: var(--muted); transition: transform 0.15s; }
+    .place.open .chev { transform: rotate(180deg); }
+    .place-desc { margin: -4px 4px 8px 40px; font-size: 13px; color: var(--muted); }
+
+    /* 사람별 길 안내 */
+    .detail { background: #f9fafb; border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin: 0 0 12px; }
+    .person + .person { margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--border); }
+    .person-head { display: flex; justify-content: space-between; gap: 8px; font-weight: 700; font-size: 14px; }
+    .legs { list-style: none; margin: 8px 0 0; padding: 0 0 0 10px; border-left: 2px solid var(--border); }
+    .leg { padding: 4px 0 4px 10px; font-size: 14px; }
+    .leg .line { vertical-align: 1px; }
+    .leg small { color: var(--muted); }
+    .leg.transfer { font-size: 12px; color: var(--muted); }
+    .leg.transfer::before { content: "↻ "; }
+    .leg.note { font-size: 13px; color: var(--muted); }
+    .vote-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+    .vote-row .voters { font-size: 13px; color: var(--muted); }
+
+    .icon-btn { background: none; border: 1px solid var(--border); border-radius: 10px; width: 36px; height: 36px; cursor: pointer; font-size: 16px; color: var(--muted); }
+    .icon-btn:hover { color: var(--text); background: #f9fafb; }
+    .icon-btn.spin { animation: spin 0.6s linear; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="index.html"><span class="brand-mark">📍</span>모임 장소 추천</a>
+    </div>
+  </header>
+
+  <main>
+    <p id="error" class="error alert"></p>
+
+    <div id="view" hidden>
+      <section class="page-title">
+        <h1 id="meetup-name"></h1>
+        <div class="meta">
+          <span class="pill">🙋 친구 약속</span>
+          <span class="pill"><b id="member-count"></b> 참여</span>
+        </div>
+      </section>
+
+      <section class="card" id="invite-card">
+        <div class="card-head">
+          <div>
+            <h2 id="invite-title">친구 초대</h2>
+            <p class="sub" id="invite-sub">링크를 받은 사람은 누구나 출발역을 등록할 수 있어요.</p>
+          </div>
+        </div>
+        <div class="share-row">
+          <input id="invite-link" type="text" readonly aria-label="초대 링크" />
+          <button id="copy-btn" class="btn btn-soft btn-sm" type="button">복사</button>
+          <button id="share-btn" class="btn btn-primary btn-sm" type="button" hidden>공유</button>
+        </div>
+      </section>
+
+      <section class="card" id="member-card">
+        <div class="card-head"><h2>참여한 친구</h2></div>
+        <div class="members" id="member-list"></div>
+        <p id="member-empty" class="sub" style="margin-bottom:16px">아직 아무도 없어요. 내 출발역부터 등록해 보세요!</p>
+        <a id="join-btn" class="btn btn-primary btn-block" href="#">내 출발역 등록하기</a>
+      </section>
+
+      <!-- 어디서: 가운데 핫플 역 -->
+      <section class="card" id="place-card">
+        <div class="card-head">
+          <div>
+            <h2>어디서 만날까요?</h2>
+            <p class="sub">모두에게 공평하면서 놀 거리 많은 역</p>
+          </div>
+          <button id="refresh-btn" class="icon-btn" type="button" aria-label="새로고침" title="새로고침">↻</button>
+        </div>
+        <div class="filter chips" id="tag-filter"></div>
+        <p class="center-note" id="center-note" hidden></p>
+        <div class="vote-summary" id="vote-summary" hidden></div>
+        <div id="place-best"></div>
+        <ol id="place-list" class="rank-list"></ol>
+        <button id="place-more" class="btn btn-text btn-block" type="button" hidden></button>
+        <div id="place-empty" class="empty" hidden></div>
+        <p class="hint" id="place-hint" hidden>이동 시간은 실제 노선을 따라 역 사이 시간과 환승(4분), 역까지 가는 시간(5분)을 더한 예상값이에요. 역 정보 © OpenStreetMap contributors</p>
+      </section>
+
+      <!-- 언제: 일정을 넣은 사람들 기준 -->
+      <section class="card" id="time-card">
+        <div class="card-head">
+          <div>
+            <h2>언제 만날까요?</h2>
+            <p class="sub" id="time-sub">일정을 넣으면 모두 비는 시간도 찾아 줘요</p>
+          </div>
+        </div>
+        <ol id="time-list" class="rank-list"></ol>
+        <div id="time-empty" class="empty" hidden></div>
+      </section>
+    </div>
+  </main>
+
+  <script src="api.js"></script>
+  <script src="ui.js"></script>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const meetupId = params.get("id");
+    const errorBox = document.getElementById("error");
+    const DAY_FULL = { mon: "월요일", tue: "화요일", wed: "수요일", thu: "목요일", fri: "금요일", sat: "토요일", sun: "일요일" };
+    const TAGS = ["전체", "맛집", "카페", "술집", "쇼핑", "문화", "산책", "공연"];
+    // 노선 색 (수도권 노선 안내 색에 가깝게)
+    const LINE_COLORS = { "1": "#0d3692", "2": "#33a23d", "3": "#fe5d10", "4": "#00a2d1", "5": "#8b50a4", "6": "#c55c1d", "7": "#54640d", "8": "#f14c82", "9": "#aa9872", "신분당": "#c6001f", "수인분당": "#e0a134", "경의중앙": "#79c0a0", "공항": "#0090d2" };
+    const SHOW_COUNT = 4;
+
+    let tag = "전체";
+    let places = [];
+    let meetupData = null; // 약속 정보 (참여자, 투표)
+    let voteInfo = { votedCount: 0, majority: null, tally: [] };
+    const openPlaces = new Set(); // 펼쳐 둔 장소
+    let showAll = false;
+
+    if (params.get("saved")) showToast("내 정보를 저장했어요 ✔");
+    if (params.get("deleted")) showToast("참여를 취소했어요");
+    const isNew = params.get("new") === "1";
+    if (params.has("saved") || params.has("deleted") || isNew) {
+      history.replaceState(null, "", "meetup.html?id=" + meetupId);
+    }
+
+    async function load() {
+      if (!meetupId) {
+        errorBox.textContent = "약속 번호가 없어요. 받은 초대 링크를 다시 확인해 주세요.";
+        return;
+      }
+      try {
+        const { ok, data } = await getMeetup(meetupId);
+        if (!ok) {
+          errorBox.textContent = errorText(data);
+          return;
+        }
+        errorBox.textContent = "";
+        showMeetup(data);
+        await Promise.all([loadPlaces(), loadTimes()]);
+      } catch (e) {
+        errorBox.textContent = "서버에 연결할 수 없어요. 백엔드가 켜져 있는지 확인해요.";
+      }
+    }
+
+    function showMeetup(meetup) {
+      meetupData = meetup;
+      document.title = meetup.name + " · 모임 장소 추천";
+      document.getElementById("meetup-name").textContent = meetup.name;
+      document.getElementById("member-count").textContent = meetup.members.length + "명";
+
+      const saved = loadMeetupToken(meetupId);
+      const mine = saved && meetup.members.find((m) => m.memberId === saved.memberId);
+
+      const list = document.getElementById("member-list");
+      list.replaceChildren();
+      meetup.members.forEach((m) => {
+        const chip = document.createElement("span");
+        chip.className = "member";
+        const avatar = document.createElement("span");
+        avatar.className = "avatar";
+        avatar.style.background = avatarColor(m.nickname);
+        avatar.textContent = [...m.nickname][0];
+        const from = document.createElement("span");
+        from.className = "from";
+        from.textContent = "· " + m.stationName;
+        chip.append(avatar, document.createTextNode(m.nickname), from);
+        if (mine && m.memberId === mine.memberId) {
+          const badge = document.createElement("span");
+          badge.className = "me-badge";
+          badge.textContent = "나";
+          chip.appendChild(badge);
+        }
+        list.appendChild(chip);
+      });
+      document.getElementById("member-empty").hidden = meetup.members.length > 0;
+
+      const joinBtn = document.getElementById("join-btn");
+      joinBtn.href = "meetup-join.html?id=" + meetupId;
+      if (mine) {
+        joinBtn.textContent = "내 정보 수정하기";
+        joinBtn.className = "btn btn-outline btn-block";
+      }
+
+      document.getElementById("invite-link").value = location.origin + location.pathname + "?id=" + meetupId;
+      if (isNew) {
+        document.getElementById("invite-card").classList.add("highlight");
+        document.getElementById("invite-title").textContent = "🎉 약속이 만들어졌어요!";
+        document.getElementById("invite-sub").textContent = "이 링크를 친구들에게 보내 주세요.";
+      } else {
+        document.getElementById("view").appendChild(document.getElementById("invite-card"));
+      }
+      document.getElementById("view").hidden = false;
+    }
+
+    // ===== 어디서 =====
+    document.getElementById("tag-filter").innerHTML = TAGS
+      .map((t) => `<label class="chip"><input type="radio" name="tag" value="${t}" ${t === tag ? "checked" : ""} /><span>${t}</span></label>`)
+      .join("");
+    document.getElementById("tag-filter").addEventListener("change", (e) => {
+      tag = e.target.value;
+      showAll = false;
+      loadPlaces();
+    });
+
+    async function loadPlaces() {
+      const empty = document.getElementById("place-empty");
+      const { ok, data } = await getMeetupPlaces(meetupId, tag === "전체" ? null : tag);
+      if (!ok) {
+        empty.textContent = errorText(data, "추천을 불러오지 못했어요.");
+        empty.hidden = false;
+        return;
+      }
+      places = data.results;
+      voteInfo = data.votes;
+
+      const note = document.getElementById("center-note");
+      note.hidden = !data.center || data.memberCount < 2;
+      if (data.center) note.textContent = `📍 지도상 가운데는 ${data.center.name} 근처예요`;
+
+      if (data.memberCount === 0) {
+        empty.innerHTML = '<span class="emoji">🚇</span>출발역이 모이면 가운데 핫플 역을 추천해 드려요.';
+      } else if (places.length === 0) {
+        empty.innerHTML = '<span class="emoji">🔍</span>이 분위기에 맞는 역이 없어요. 다른 분위기를 골라 보세요.';
+      } else if (data.memberCount === 1) {
+        empty.innerHTML = "친구가 출발역을 더 등록하면 모두에게 가운데인 역으로 바뀌어요.";
+      }
+      empty.hidden = data.memberCount > 1 && places.length > 0;
+      document.getElementById("place-hint").hidden = places.length === 0;
+      renderPlaces();
+    }
+
+    function lineBadge(line) {
+      const b = document.createElement("span");
+      b.className = "line";
+      b.style.background = LINE_COLORS[line] || "#6b7280";
+      b.textContent = line.length > 2 ? line.slice(0, 2) : line;
+      b.title = line.length > 2 ? line : line + "호선";
+      return b;
+    }
+
+    function lineBadges(lines) {
+      const wrap = document.createElement("span");
+      wrap.className = "lines";
+      lines.slice(0, 4).forEach((l) => wrap.appendChild(lineBadge(l)));
+      return wrap;
+    }
+
+    const lineName = (l) => (l.length > 2 ? l : l + "호선");
+    const el = (tag, className, text) => {
+      const e = document.createElement(tag);
+      if (className) e.className = className;
+      if (text !== undefined) e.textContent = text;
+      return e;
+    };
+
+    // ===== 투표 =====
+    function myMemberId() {
+      const saved = loadMeetupToken(meetupId);
+      return saved && meetupData?.members.some((m) => m.memberId === saved.memberId) ? saved.memberId : null;
+    }
+
+    function renderVoteSummary() {
+      const box = document.getElementById("vote-summary");
+      box.replaceChildren();
+      const memberCount = meetupData?.members.length ?? 0;
+      box.hidden = memberCount === 0;
+      if (box.hidden) return;
+
+      if (voteInfo.majority) {
+        const top = voteInfo.tally[0];
+        box.classList.add("decided");
+        box.append(el("b", "", `🎉 ${top.name}역으로 정해졌어요!`), el("span", "", ` ${memberCount}명 중 ${top.count}명이 골랐어요`));
+        return;
+      }
+      box.classList.remove("decided");
+      box.appendChild(el("b", "", `🗳️ 투표 ${voteInfo.votedCount}/${memberCount}명`));
+      box.appendChild(el("span", "", voteInfo.tally.length
+        ? " · " + voteInfo.tally.map((t) => `${t.name} ${t.count}표`).join(" · ")
+        : " · 장소를 눌러 투표해 보세요"));
+    }
+
+    async function toggleVote(place) {
+      const saved = loadMeetupToken(meetupId);
+      const mine = myMemberId();
+      if (!mine) {
+        location.href = "meetup-join.html?id=" + meetupId;
+        return;
+      }
+      const already = meetupData.votes[mine] === place.stationId;
+      try {
+        const { ok, data } = already
+          ? await cancelMeetupVote(meetupId, mine, saved.editToken)
+          : await voteMeetupPlace(meetupId, mine, saved.editToken, place.stationId);
+        if (!ok) {
+          showToast(errorText(data, "투표하지 못했어요."));
+          return;
+        }
+        showToast(already ? "투표를 취소했어요" : `${place.name}역에 투표했어요`);
+        await load();
+      } catch (e) {
+        showToast("서버에 연결할 수 없어요.");
+      }
+    }
+
+    function voteRow(place) {
+      const row = el("div", "vote-row");
+      const voters = el("span", "voters", place.votes ? `${place.voters.join(", ")} 투표` : "아직 투표 없음");
+      const mine = myMemberId();
+      const votedHere = mine && meetupData.votes[mine] === place.stationId;
+      const btn = el("button", "btn btn-sm " + (votedHere ? "btn-primary" : "btn-soft"),
+        !mine ? "참여하고 투표하기" : votedHere ? "✓ 투표함 · 취소" : "여기 투표");
+      btn.type = "button";
+      btn.addEventListener("click", (e) => { e.stopPropagation(); toggleVote(place); });
+      row.append(voters, btn);
+      return row;
+    }
+
+    // ===== 사람별 길 안내 =====
+    function routeDetail(place) {
+      const box = el("div", "detail");
+      place.times.forEach((t) => {
+        const person = el("div", "person");
+        const head = el("div", "person-head");
+        head.append(
+          el("span", "", `${t.nickname} · ${t.from}에서`),
+          el("span", "", `${t.minutes}분` + (t.transfers === null ? "" : t.transfers === 0 ? " · 직통" : ` · 환승 ${t.transfers}`))
+        );
+        person.appendChild(head);
+
+        const legs = el("ol", "legs");
+        if (t.legs && t.legs.length === 0) {
+          legs.appendChild(el("li", "leg note", "출발역이 바로 여기예요"));
+        } else if (t.legs) {
+          t.legs.forEach((leg, i) => {
+            if (i > 0) legs.appendChild(el("li", "leg transfer", `${leg.from}에서 ${lineName(leg.line)}으로 갈아타기`));
+            const li = el("li", "leg");
+            li.append(lineBadge(leg.line), el("span", "", ` ${leg.from} → ${leg.to}`), el("small", "", ` ${leg.stops}개 역 · ${leg.minutes}분`));
+            legs.appendChild(li);
+          });
+        } else {
+          legs.appendChild(el("li", "leg note", "노선 정보가 없어 거리로 추정했어요"));
+        }
+        person.appendChild(legs);
+        box.appendChild(person);
+      });
+      box.appendChild(voteRow(place));
+      return box;
+    }
+
+    function renderPlaces() {
+      const bestEl = document.getElementById("place-best");
+      const listEl = document.getElementById("place-list");
+      const more = document.getElementById("place-more");
+      bestEl.replaceChildren();
+      listEl.replaceChildren();
+      renderVoteSummary();
+      if (places.length === 0) { more.hidden = true; return; }
+
+      const [first, ...rest] = places;
+
+      // 1위: 크게 보여 주고, 아래 버튼으로 길 안내·투표를 펼친다
+      const best = el("div", "best");
+      best.innerHTML = '<div class="label">👍 여기서 만나요</div><div class="name"></div><div class="desc"></div><div class="tags"></div><div class="bars"></div>';
+      const nameEl = best.querySelector(".name");
+      nameEl.textContent = first.name + "역";
+      nameEl.appendChild(lineBadges(first.lines));
+      if (first.votes) nameEl.appendChild(el("span", "vote-badge light", `🗳️ ${first.votes}표`));
+      best.querySelector(".desc").textContent = first.desc;
+      [...first.reasons, ...first.tags.map((t) => "#" + t)].forEach((r) => best.querySelector(".tags").appendChild(el("span", "tag", r)));
+      const longest = Math.max(...first.times.map((t) => t.minutes), 1);
+      first.times.forEach((t) => {
+        const row = el("div", "bar-row");
+        row.innerHTML = '<span class="who"></span><span class="bar"><i></i></span><span class="min"></span>';
+        row.querySelector(".who").textContent = t.nickname;
+        row.querySelector(".bar i").style.width = Math.max(4, (t.minutes / longest) * 100) + "%";
+        const min = row.querySelector(".min");
+        min.textContent = t.minutes + "분";
+        if (t.transfers !== null) min.appendChild(el("small", "", t.transfers === 0 ? "직통" : "환승 " + t.transfers));
+        best.querySelector(".bars").appendChild(row);
+      });
+      const toggle = el("button", "best-toggle", openPlaces.has(first.stationId) ? "길 안내 접기 ▴" : "길 안내 · 투표 ▾");
+      toggle.type = "button";
+      toggle.setAttribute("aria-expanded", String(openPlaces.has(first.stationId)));
+      toggle.addEventListener("click", () => toggleOpen(first.stationId));
+      best.appendChild(toggle);
+      bestEl.appendChild(best);
+      if (openPlaces.has(first.stationId)) bestEl.appendChild(routeDetail(first));
+
+      // 2위부터: 한 줄로 보여 주고, 누르면 사람별 시간·길 안내·투표가 펼쳐진다
+      const shown = showAll ? rest : rest.filter((p, i) => i < SHOW_COUNT || p.votes > 0);
+      shown.forEach((p) => {
+        const open = openPlaces.has(p.stationId);
+        const li = el("li", "rank-item place" + (open ? " open" : ""));
+        const head = el("button", "place-head");
+        head.type = "button";
+        head.setAttribute("aria-expanded", String(open));
+        head.innerHTML = '<span class="rank"></span><span class="info"><span class="title"></span><span class="detail-line"></span></span><span class="badge"></span><span class="chev">▾</span>';
+        head.querySelector(".rank").textContent = p.rank;
+        const title = head.querySelector(".title");
+        title.textContent = p.name;
+        title.appendChild(lineBadges(p.lines));
+        if (p.votes) title.appendChild(el("span", "vote-badge", `🗳️ ${p.votes}`));
+        // 접혀 있을 때도 사람별 시간을 짧게 보여 준다
+        head.querySelector(".detail-line").textContent = p.times.map((t) => `${t.nickname} ${t.minutes}분`).join(" · ");
+        head.querySelector(".badge").textContent = "최대 " + p.maxMinutes + "분";
+        head.addEventListener("click", () => toggleOpen(p.stationId));
+        li.appendChild(head);
+        if (open) {
+          if (p.desc) li.appendChild(el("p", "place-desc", [p.desc, ...p.tags.map((t) => "#" + t)].join(" · ")));
+          li.appendChild(routeDetail(p));
+        }
+        listEl.appendChild(li);
+      });
+      const hiddenCount = rest.length - shown.length;
+      more.hidden = !showAll && hiddenCount <= 0;
+      more.textContent = showAll ? "접기" : `${hiddenCount}곳 더 보기`;
+    }
+
+    function toggleOpen(stationId) {
+      if (openPlaces.has(stationId)) openPlaces.delete(stationId);
+      else openPlaces.add(stationId);
+      renderPlaces();
+    }
+
+    document.getElementById("place-more").addEventListener("click", () => {
+      showAll = !showAll;
+      renderPlaces();
+    });
+
+    // ===== 언제 =====
+    async function loadTimes() {
+      const listEl = document.getElementById("time-list");
+      const empty = document.getElementById("time-empty");
+      const sub = document.getElementById("time-sub");
+      listEl.replaceChildren();
+      const { ok, data } = await getMeetupTimes(meetupId);
+      if (!ok) return;
+
+      if (data.scheduledCount === 0) {
+        sub.textContent = "일정을 넣으면 모두 비는 시간도 찾아 줘요";
+        empty.innerHTML = '<span class="emoji">🗓️</span>아직 일정을 넣은 사람이 없어요.<br />내 정보에서 바쁜 시간을 칠하면 시간도 추천해 드려요.';
+        empty.hidden = false;
+        return;
+      }
+      sub.textContent = data.scheduledCount === data.memberCount
+        ? `${data.memberCount}명 모두의 일정 기준`
+        : `일정을 넣은 ${data.scheduledCount}명 기준 (${data.memberCount - data.scheduledCount}명은 아직 안 넣었어요)`;
+
+      if (data.times.length === 0) {
+        empty.innerHTML = '<span class="emoji">😥</span>모두 비는 시간이 없어요.';
+        empty.hidden = false;
+        return;
+      }
+      empty.hidden = true;
+      data.times.slice(0, 5).forEach((t, i) => {
+        const li = document.createElement("li");
+        li.className = "rank-item";
+        li.innerHTML = '<span class="rank"></span><div class="info"><div class="title"></div><div class="detail"></div></div><span class="badge"></span>';
+        li.querySelector(".rank").textContent = i + 1;
+        li.querySelector(".title").textContent = `${DAY_FULL[t.day]} ${t.start} ~ ${t.end}`;
+        li.querySelector(".detail").textContent = formatMinutes(t.duration) + " 비어 있어요" + (i === 0 ? " · 가장 추천해요" : "");
+        li.querySelector(".badge").textContent = t.score + "점";
+        listEl.appendChild(li);
+      });
+    }
+
+    function formatMinutes(minutes) {
+      const h = Math.floor(minutes / 60);
+      const m = minutes % 60;
+      return [h ? h + "시간" : "", m ? m + "분" : ""].filter(Boolean).join(" ");
+    }
+
+    const refreshBtn = document.getElementById("refresh-btn");
+    refreshBtn.addEventListener("click", async () => {
+      refreshBtn.classList.remove("spin");
+      void refreshBtn.offsetWidth; // 애니메이션을 다시 시작하기 위해 레이아웃을 강제로 계산한다
+      refreshBtn.classList.add("spin");
+      await load();
+      showToast("최신 상태로 불러왔어요");
+    });
+
+    // 다른 앱에 다녀오면 친구가 새로 등록했을 수 있으니 다시 불러온다
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") load();
+    });
+
+    document.getElementById("copy-btn").addEventListener("click", async () => {
+      const link = document.getElementById("invite-link");
+      try {
+        await navigator.clipboard.writeText(link.value);
+        showToast("링크를 복사했어요. 친구들에게 보내 주세요");
+      } catch (e) {
+        link.select();
+        showToast("링크를 선택했어요. Ctrl+C로 복사해 주세요");
+      }
+    });
+
+    const shareBtn = document.getElementById("share-btn");
+    if (navigator.share) {
+      shareBtn.hidden = false;
+      shareBtn.addEventListener("click", () => {
+        navigator.share({
+          title: document.getElementById("meetup-name").textContent,
+          text: "어디서 만날지 정하게 출발역 등록해 줘!",
+          url: document.getElementById("invite-link").value,
+        }).catch(() => { /* 공유 취소 */ });
+      });
+    }
+
+    load();
+  </script>
+</body>
+</html>

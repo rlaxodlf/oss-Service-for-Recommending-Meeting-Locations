@@ -1,8 +1,9 @@
 // 서버와의 통신 코드를 한 파일에 모은다.
 // 백엔드 API가 바뀌면 이 파일만 수정하면 된다.
 
-// 백엔드 서버 주소. 배포할 때는 이 한 줄만 바꾼다.
-const API = "http://localhost:3000";
+// 백엔드 서버 주소. 로컬 개발(프론트 5500, 백엔드 3000)일 때만 따로 지정하고,
+// 그 밖에는 화면과 같은 주소로 요청한다. (서버가 화면과 API를 함께 제공하는 배포 환경)
+const API = location.port === "5500" ? "http://localhost:3000" : "";
 
 // true이면 시간표 저장 API(POST /rooms/:id/schedules)를 호출하지 않고 가짜 응답을 사용한다.
 // 서버에 해당 API가 구현되면 false로 변경한다.
@@ -167,5 +168,110 @@ function storeEditToken(roomId, scheduleId, editToken) {
 function clearEditToken(roomId) {
   try {
     localStorage.removeItem(`editToken:${roomId}`);
+  } catch (e) { /* 무시 */ }
+}
+
+// ============================================================
+// 일반 모드 (친구 약속): 출발역으로 가운데 핫플 역을, 일정으로 함께 비는 시간을 찾는다
+// ============================================================
+
+// 일반 모드는 주말도 쓴다
+const WEEK_DAYS = ["월", "화", "수", "목", "금", "토", "일"];
+const WEEK_DAY_CODES = { ...DAY_CODES, "토": "sat", "일": "sun" };
+const WEEK_DAY_LABELS = invert(WEEK_DAY_CODES);
+
+// 화면 형식 { nickname, stationId, busy: [{ day: "토", start, end }] | null, preferredTimes }
+// → 서버 형식. busy가 null이면 일정을 넣지 않은 것이라 서버에 보내지 않는다
+function toServerMember({ nickname, stationId, busy, preferredTimes }) {
+  const body = {
+    nickname,
+    stationId,
+    preferred: preferredTimes.map((t) => PREFERRED_CODES[t] ?? t),
+  };
+  if (busy) {
+    body.busy = busy.map((b) => ({ day: WEEK_DAY_CODES[b.day] ?? b.day, start: b.start, end: b.end }));
+  }
+  return body;
+}
+
+function fromServerMember(member) {
+  return {
+    nickname: member.nickname,
+    stationId: member.stationId,
+    busy: member.hasSchedule
+      ? member.busy.map((b) => ({ day: WEEK_DAY_LABELS[b.day] ?? b.day, start: b.start, end: b.end }))
+      : null,
+    preferredTimes: (member.preferred || []).map((p) => PREFERRED_LABELS[p] ?? p),
+  };
+}
+
+function getStations() {
+  return request("/stations");
+}
+
+function createMeetup(name, minMinutes) {
+  return request("/meetups", jsonOptions("POST", { name, minMinutes }));
+}
+
+function getMeetup(meetupId) {
+  return request(`/meetups/${meetupId}`);
+}
+
+function joinMeetup(meetupId, payload) {
+  return request(`/meetups/${meetupId}/members`, jsonOptions("POST", toServerMember(payload)));
+}
+
+function updateMeetupMember(meetupId, memberId, editToken, payload) {
+  return request(
+    `/meetups/${meetupId}/members/${memberId}`,
+    jsonOptions("PATCH", toServerMember(payload), { "X-Edit-Token": editToken })
+  );
+}
+
+function deleteMeetupMember(meetupId, memberId, editToken) {
+  return request(`/meetups/${meetupId}/members/${memberId}`, {
+    method: "DELETE",
+    headers: { "X-Edit-Token": editToken },
+  });
+}
+
+function getMeetupPlaces(meetupId, tag) {
+  return request(`/meetups/${meetupId}/places` + (tag ? "?tag=" + encodeURIComponent(tag) : ""));
+}
+
+// 장소 투표: 한 사람 한 표. 다른 장소에 다시 투표하면 바뀐다
+function voteMeetupPlace(meetupId, memberId, editToken, stationId) {
+  return request(`/meetups/${meetupId}/votes/${memberId}`, jsonOptions("PUT", { stationId }, { "X-Edit-Token": editToken }));
+}
+
+function cancelMeetupVote(meetupId, memberId, editToken) {
+  return request(`/meetups/${meetupId}/votes/${memberId}`, {
+    method: "DELETE",
+    headers: { "X-Edit-Token": editToken },
+  });
+}
+
+function getMeetupTimes(meetupId) {
+  return request(`/meetups/${meetupId}/times`);
+}
+
+// 일반 모드 수정 토큰. 학생 모드와 키를 나눠 서로 덮어쓰지 않게 한다
+function loadMeetupToken(meetupId) {
+  try {
+    return JSON.parse(localStorage.getItem(`meetupToken:${meetupId}`));
+  } catch (e) {
+    return null;
+  }
+}
+
+function storeMeetupToken(meetupId, memberId, editToken) {
+  try {
+    localStorage.setItem(`meetupToken:${meetupId}`, JSON.stringify({ memberId, editToken }));
+  } catch (e) { /* 저장하지 못해도 참여 자체는 계속 진행한다 */ }
+}
+
+function clearMeetupToken(meetupId) {
+  try {
+    localStorage.removeItem(`meetupToken:${meetupId}`);
   } catch (e) { /* 무시 */ }
 }
