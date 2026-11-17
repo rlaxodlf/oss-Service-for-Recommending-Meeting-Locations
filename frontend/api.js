@@ -4,6 +4,10 @@
 // 백엔드 서버 주소. 배포할 때는 이 한 줄만 바꾼다.
 const API = "http://localhost:3000";
 
+// true이면 시간표 저장 API(POST /rooms/:id/schedules)를 호출하지 않고 가짜 응답을 사용한다.
+// 서버에 해당 API가 구현되면 false로 변경한다.
+const USE_MOCK_SCHEDULES = false;
+
 // true이면 캡처 분석 API(POST /rooms/:id/schedules/parse) 대신 가짜 응답을 사용한다.
 // 서버에 해당 API가 구현되면 false로 변경한다.
 const USE_MOCK_PARSE = true;
@@ -92,7 +96,11 @@ function getSchedules(roomId) {
   return request(`/rooms/${roomId}/schedules`);
 }
 
-function saveSchedule(roomId, payload) {
+async function saveSchedule(roomId, payload) {
+  if (USE_MOCK_SCHEDULES) {
+    // 서버가 수정 토큰을 발급한다고 가정한 가짜 응답
+    return { ok: true, status: 201, data: { scheduleId: "mock-" + Date.now(), editToken: "mock-token" } };
+  }
   return request(`/rooms/${roomId}/schedules`, jsonOptions("POST", toServerSchedule(payload)));
 }
 
