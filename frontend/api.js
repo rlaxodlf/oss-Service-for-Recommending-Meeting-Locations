@@ -16,7 +16,7 @@ const IMAGE_TYPES = ["image/png", "image/jpeg"];
 
 // 시간표 JSON 형식 (필드 이름은 팀 합의 후 확정한다)
 //   { nickname, preferredTimes: ["오후"], classes: [{ day, start, end, room }] }
-const DAYS = ["월", "화", "수", "목", "금", "토"];
+const DAYS = ["월", "화", "수", "목", "금"];
 const PREFERRED_TIMES = ["오전", "오후", "저녁"];
 
 // 시간표 캡처 이미지를 서버로 보내 수업 목록을 받는다. 서버가 LLM으로 분석하며 결과를 저장하지는 않는다.
