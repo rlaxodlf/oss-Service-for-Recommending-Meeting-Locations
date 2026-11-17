@@ -5,7 +5,7 @@ const API = "http://localhost:3000";
 
 // true이면 시간표 저장 API(POST /rooms/:id/schedules)를 호출하지 않고 가짜 응답을 사용한다.
 // 서버에 해당 API가 구현되면 false로 변경한다.
-const USE_MOCK_SCHEDULES = true;
+const USE_MOCK_SCHEDULES = false;
 
 // true이면 캡처 분석 API(POST /rooms/:id/schedules/parse) 대신 가짜 응답을 사용한다.
 const USE_MOCK_PARSE = true;
